@@ -1,4 +1,12 @@
 {
+
+  "scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start"
+},
+
+
   "dependencies": {
     "crypto-random-string": "^5.0.0",
     "express-validator": "^7.2.1",
