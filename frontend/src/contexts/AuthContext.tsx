@@ -30,7 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await fetchApi('/users/me');
       setUser(data);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'Session expired. Please login again.') {
+        router.push('/login');
+      }
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -38,8 +41,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    fetchUser();
-  }, []);
+    let isInitialMount = true;
+    
+    // Function to check cookies and refresh if needed
+    const checkAndRefreshAuth = async () => {
+      if (document.cookie.includes('refreshToken')) {
+        try {
+          await fetchApi('/users/refresh-token', { method: 'POST' });
+          await fetchUser();
+        } catch (error) {
+          setUser(null);
+          if (!isInitialMount) {
+            router.push('/login');
+          }
+        }
+      } else {
+        setUser(null);
+        setIsLoading(false);
+      }
+    };
+
+    // Initial auth check
+    checkAndRefreshAuth();
+
+    // Set up interval to refresh token periodically (every 14 minutes)
+    const refreshInterval = setInterval(checkAndRefreshAuth, 14 * 60 * 1000);
+
+    return () => {
+      isInitialMount = false;
+      clearInterval(refreshInterval);
+    };
+  }, [router]);
 
   const logout = async () => {
     try {

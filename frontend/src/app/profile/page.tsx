@@ -19,46 +19,96 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-50">
-      <div className="bg-white border border-neutral-200 rounded-xl shadow p-8 w-full max-w-md text-center">
-        <h1 className="text-2xl font-bold mb-4 text-neutral-800">Profile</h1>
-        <div className="mb-4">
-          <span className="block text-neutral-700 font-medium">Name:</span>
-          <span className="block text-neutral-800">{user.name}</span>
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center mb-8">
+          <button 
+            onClick={() => window.history.back()}
+            className="flex items-center px-4 py-2 text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="font-medium">Back to Dashboard</span>
+          </button>
         </div>
-        <div className="mb-4">
-          <span className="block text-neutral-700 font-medium">Email:</span>
-          <span className="block text-neutral-800">{user.email}</span>
+
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:px-8 sm:py-10">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-6 mb-6">
+              <h1 className="text-2xl font-semibold text-gray-900">Profile Settings</h1>
+              <button
+                className="px-4 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                onClick={() => setShowModal(true)}
+              >
+                Sign Out
+              </button>
+            </div>
+
+            <div className="space-y-8">
+              <div>
+                <div className="flex items-center mb-6">
+                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="ml-4">
+                    <h2 className="text-lg font-medium text-gray-900">{user.name}</h2>
+                    <p className="text-sm text-gray-500">Account Owner</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Full Name</label>
+                  <div className="text-lg font-medium text-black p-3 bg-white rounded-lg border border-gray-300">
+                    {user.name}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Email Address</label>
+                  <div className="text-lg font-medium text-black p-3 bg-white rounded-lg border border-gray-300">
+                    {user.email}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <button
-          className="mt-6 px-4 py-2 rounded-lg bg-neutral-800 text-white text-sm font-medium hover:bg-neutral-700 transition"
-          onClick={() => setShowModal(true)}
-        >
-          Logout
-        </button>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgb(0,0,0,0.15)' }}>
-            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-              <h2 className="text-lg font-semibold mb-4">Confirm Logout</h2>
-              <p className="mb-6 text-neutral-700">Are you sure you want to logout?</p>
-              <div className="flex justify-end gap-2">
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setShowModal(false)} />
+            <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-semibold text-gray-900">Sign Out</h2>
                 <button
-                  className="px-4 py-2 rounded bg-neutral-200 text-neutral-800 font-medium hover:bg-neutral-300"
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-600">Are you sure you want to sign out of your account?</p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-black transition-colors"
                   onClick={() => setShowModal(false)}
                 >
                   Cancel
                 </button>
                 <button
-                  className="px-4 py-2 rounded bg-red-600 text-white font-medium hover:bg-red-700"
+                  className="px-4 py-2 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
                   onClick={() => { setShowModal(false); logout(); }}
                 >
-                  Logout
+                  Sign Out
                 </button>
               </div>
             </div>
           </div>
         )}
-        {/* Add more profile fields here if needed */}
       </div>
     </div>
   );

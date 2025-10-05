@@ -17,6 +17,9 @@ export default function Navbar() {
   const [collections, setCollections] = useState<Array<{ _id: string; name: string }>>([]);
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   // parse tags separated by `#`, allow inputs like "#work #fun" or "work #fun"
   const tags = tagInput
@@ -82,12 +85,72 @@ export default function Navbar() {
               <div className="animate-pulse h-6 w-24 bg-neutral-200 rounded"></div>
             ) : isAuthenticated ? (
               <>
-                <input
-                  type="text"
-                  placeholder="Search bookmarks..."
-                  className="px-3 py-2 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 bg-neutral-50 text-neutral-800"
-                  style={{ width: '220px' }}
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search bookmarks..."
+                    className="pl-9 pr-3 py-2 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 bg-neutral-50 text-neutral-800"
+                    style={{ width: '250px' }}
+                    value={searchQuery}
+                    onChange={async (e) => {
+                      const query = e.target.value;
+                      setSearchQuery(query);
+                      setIsSearching(true);
+                      
+                      // Update URL immediately
+                      if (query) {
+                        router.push(`/dashboard?search=${encodeURIComponent(query)}`);
+                      } else {
+                        router.push('/dashboard');
+                      }
+                      
+                      // Fetch search results right away
+                      try {
+                        const data = await fetchApi(`/bookmarks/search?q=${encodeURIComponent(query)}&page=1&limit=10`);
+                        setSearchResults(data.items || []);
+                      } catch (error) {
+                        console.error('Search error:', error);
+                      } finally {
+                        setIsSearching(false);
+                      }
+                      
+                      try {
+                        if (query.trim()) {
+                          const searchEndpoint = `/bookmarks/search?q=${encodeURIComponent(query.trim())}`;
+                          const data = await fetchApi(searchEndpoint);
+                          setSearchResults(data.items || []);
+                          // Update URL without triggering navigation
+                          window.history.replaceState(
+                            {}, 
+                            '', 
+                            `/dashboard?search=${encodeURIComponent(query.trim())}`
+                          );
+                        } else {
+                          setSearchResults([]);
+                          window.history.replaceState({}, '', '/dashboard');
+                        }
+                      } catch (error) {
+                        console.error('Search failed:', error);
+                      } finally {
+                        setIsSearching(false);
+                      }
+                    }}
+                  />
+                  <svg
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
                 <button
                   onClick={() => setShowImportModal(true)}
                   className="px-4 py-2 rounded-lg bg-neutral-800 text-white text-sm font-medium hover:bg-neutral-700 transition"

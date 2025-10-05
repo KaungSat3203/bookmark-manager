@@ -6,39 +6,185 @@ const auth = require('../middleware/auth');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
+// Search route
+router.get('/search', auth, async (req, res) => {
+    try {
+        const { q } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+        const skip = (page - 1) * limit;
+
+        if (!q) {
+            return res.json({ items: [], total: 0, page: 1, pages: 1 });
+        }
+
+        const searchRegex = new RegExp(q, 'i');
+        const query = {
+            userId: req.userId,
+            $or: [
+                { title: searchRegex },
+                { url: searchRegex },
+                { note: searchRegex },
+                { 'meta.title': searchRegex },
+                { 'meta.description': searchRegex },
+                { 'meta.siteName': searchRegex }
+            ]
+        };
+
+        const [bookmarks, total] = await Promise.all([
+            Bookmark.find(query)
+                .populate('tags')
+                .populate('collectionId')
+                .skip(skip)
+                .limit(limit)
+                .sort({ createdAt: -1 }),
+            Bookmark.countDocuments(query)
+        ]);
+
+        const pages = Math.ceil(total / limit);
+        res.json({
+            items: bookmarks,
+            total,
+            page,
+            pages
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 async function fetchMetadata(url) {
     try {
-        const res = await fetch(url, { timeout: 5000 });
+        // Add user agent to avoid being blocked
+        const res = await fetch(url, {
+            timeout: 5000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; BookmarkManager/1.0; +http://localhost)'
+            }
+        });
+        
+        if (!res.ok) throw new Error('Failed to fetch');
+        
         const html = await res.text();
         const $ = cheerio.load(html);
-        const get = (sel) => {
-            const el = $(sel).first();
-            return el && el.attr('content') ? el.attr('content') : (el && el.attr('src') ? el.attr('src') : el.text());
+        
+        const get = (selectors) => {
+            for (const selector of selectors) {
+                const el = $(selector).first();
+                const value = el.attr('content') || el.attr('src') || el.text();
+                if (value && value.trim()) return value.trim();
+            }
+            return null;
         };
 
+        // Enhanced metadata extraction
         const meta = {
-            title: $('meta[property="og:title"]').attr('content') || $('title').text() || null,
-            description: $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || null,
-            image: $('meta[property="og:image"]').attr('content') || $('link[rel="image_src"]').attr('href') || null,
-            video: $('meta[property="og:video"]').attr('content') || null,
-            siteName: $('meta[property="og:site_name"]').attr('content') || null,
-            publishedAt: $('meta[property="article:published_time"]').attr('content') || null
+            title: get([
+                'meta[property="og:title"]',
+                'meta[name="twitter:title"]',
+                'meta[name="title"]',
+                'title'
+            ]),
+            description: get([
+                'meta[property="og:description"]',
+                'meta[name="twitter:description"]',
+                'meta[name="description"]',
+                'meta[itemprop="description"]'
+            ]),
+            image: get([
+                'meta[property="og:image"]',
+                'meta[name="twitter:image"]',
+                'meta[itemprop="image"]',
+                'link[rel="image_src"]',
+                'link[rel="icon"]',
+                'link[rel="apple-touch-icon"]'
+            ]),
+            video: get([
+                'meta[property="og:video"]',
+                'meta[property="og:video:url"]',
+                'meta[name="twitter:player"]'
+            ]),
+            siteName: get([
+                'meta[property="og:site_name"]',
+                'meta[name="application-name"]'
+            ]) || new URL(url).hostname,
+            publishedAt: get([
+                'meta[property="article:published_time"]',
+                'meta[name="date"]',
+                'time[datetime]'
+            ]),
+            author: get([
+                'meta[name="author"]',
+                'meta[property="article:author"]'
+            ]),
+            type: get([
+                'meta[property="og:type"]',
+                'meta[name="twitter:card"]'
+            ])
         };
 
-        if (meta.publishedAt) meta.publishedAt = new Date(meta.publishedAt);
+        // Clean up and validate dates
+        if (meta.publishedAt) {
+            const date = new Date(meta.publishedAt);
+            meta.publishedAt = !isNaN(date.getTime()) ? date : null;
+        }
+
+        // Ensure image URLs are absolute
+        if (meta.image && !meta.image.startsWith('http')) {
+            const baseUrl = new URL(url);
+            meta.image = meta.image.startsWith('/') 
+                ? `${baseUrl.protocol}//${baseUrl.host}${meta.image}`
+                : `${baseUrl.protocol}//${baseUrl.host}/${meta.image}`;
+        }
+
         return meta;
     } catch (err) {
+        console.error(`Error fetching metadata for ${url}:`, err.message);
         return {};
     }
 }
 
 async function cleanupTagsIfUnused(tagIds, userId) {
     if (!Array.isArray(tagIds) || tagIds.length === 0) return;
-    for (const tagId of tagIds) {
-        const count = await Bookmark.countDocuments({ tags: tagId, userId });
-        if (count === 0) {
-            await Tag.deleteOne({ _id: tagId, userId });
+    
+    try {
+        // Get all bookmarks for this user that use any of these tags
+        const bookmarks = await Bookmark.find({
+            userId,
+            tags: { $in: tagIds }
+        }).select('tags');
+
+        // Create a Set of tags that are still in use
+        const usedTags = new Set(
+            bookmarks.flatMap(b => b.tags.map(t => t.toString()))
+        );
+
+        // Delete tags that aren't in the usedTags set
+        const tagsToDelete = tagIds.filter(id => !usedTags.has(id.toString()));
+        
+        if (tagsToDelete.length > 0) {
+            await Tag.deleteMany({
+                _id: { $in: tagsToDelete },
+                userId
+            });
+            console.log(`Cleaned up ${tagsToDelete.length} unused tags for user ${userId}`);
         }
+    } catch (err) {
+        console.error('Error during tag cleanup:', err);
+    }
+}
+
+// Add this function to do a full cleanup of all unused tags
+async function cleanupAllUnusedTags(userId) {
+    try {
+        // Get all tags for this user
+        const tags = await Tag.find({ userId }).select('_id');
+        const tagIds = tags.map(t => t._id);
+        
+        // Clean them up
+        await cleanupTagsIfUnused(tagIds, userId);
+    } catch (err) {
+        console.error('Error during full tag cleanup:', err);
     }
 }
 
@@ -77,31 +223,75 @@ router.get('/', auth, async (req, res) => {
         const limit = Math.min(parseInt(req.query.limit) || 20, 100);
         const skip = (page - 1) * limit;
 
-        const [items, total] = await Promise.all([
+        const [bookmarks, total] = await Promise.all([
             Bookmark.find({ userId: req.userId }).populate('tags').populate('collectionId').skip(skip).limit(limit),
             Bookmark.countDocuments({ userId: req.userId })
         ]);
 
-        res.json({ items, total, page, pages: Math.ceil(total / limit) });
+        // Send paginated response
+        const pages = Math.ceil(total / limit);
+        res.json({
+            items: bookmarks,
+            total,
+            page,
+            pages
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-// Get bookmarks by tag id
-router.get('/by-tag/:tagId', auth, async (req, res) => {
+// Get bookmarks by tag ids
+router.get('/by-tag/:tagIds', auth, async (req, res) => {
     try {
-        const { tagId } = req.params;
+        const tagIds = req.params.tagIds.split(',');
         const page = parseInt(req.query.page) || 1;
         const limit = Math.min(parseInt(req.query.limit) || 20, 100);
         const skip = (page - 1) * limit;
 
-        const [items, total] = await Promise.all([
-            Bookmark.find({ userId: req.userId, tags: tagId }).populate('tags').populate('collectionId').skip(skip).limit(limit),
-            Bookmark.countDocuments({ userId: req.userId, tags: tagId })
+        // Find bookmarks that have ALL of the specified tags
+        const [bookmarks, total] = await Promise.all([
+            Bookmark.find({ 
+                userId: req.userId, 
+                tags: { $all: tagIds } // Changed from $in to $all to require all tags
+            })
+            .populate('tags')
+            .populate('collectionId')
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 }),
+            Bookmark.countDocuments({ 
+                userId: req.userId, 
+                tags: { $all: tagIds } // Changed from $in to $all to require all tags
+            })
         ]);
 
-        res.json({ items, total, page, pages: Math.ceil(total / limit) });
+        // Update metadata for bookmarks that are missing it
+        for (let bookmark of bookmarks) {
+            if (!bookmark.meta || !bookmark.meta.title) {
+                try {
+                    const meta = await fetchMetadata(bookmark.url);
+                    if (meta) {
+                        bookmark = await Bookmark.findOneAndUpdate(
+                            { _id: bookmark._id },
+                            { $set: { meta } },
+                            { new: true }
+                        ).populate('tags').populate('collectionId');
+                    }
+                } catch (e) {
+                    // Silently handle metadata fetch errors
+                    console.error(`Failed to fetch metadata for bookmark ${bookmark._id}:`, e.message);
+                }
+            }
+        }
+
+        const pages = Math.ceil(total / limit);
+        res.json({
+            items: bookmarks,
+            total,
+            page,
+            pages
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -115,12 +305,37 @@ router.get('/by-collection/:collectionId', auth, async (req, res) => {
         const limit = Math.min(parseInt(req.query.limit) || 20, 100);
         const skip = (page - 1) * limit;
 
-        const [items, total] = await Promise.all([
+        const [bookmarks, total] = await Promise.all([
             Bookmark.find({ userId: req.userId, collectionId }).populate('tags').populate('collectionId').skip(skip).limit(limit),
             Bookmark.countDocuments({ userId: req.userId, collectionId })
         ]);
 
-        res.json({ items, total, page, pages: Math.ceil(total / limit) });
+        // Update metadata for bookmarks that are missing it
+        for (let bookmark of bookmarks) {
+            if (!bookmark.meta || !bookmark.meta.title) {
+                try {
+                    const meta = await fetchMetadata(bookmark.url);
+                    if (meta) {
+                        bookmark = await Bookmark.findOneAndUpdate(
+                            { _id: bookmark._id },
+                            { $set: { meta } },
+                            { new: true }
+                        ).populate('tags').populate('collectionId');
+                    }
+                } catch (e) {
+                    // Silently handle metadata fetch errors
+                    console.error(`Failed to fetch metadata for bookmark ${bookmark._id}:`, e.message);
+                }
+            }
+        }
+
+        const pages = Math.ceil(total / limit);
+        res.json({
+            items: bookmarks,
+            total,
+            page,
+            pages
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

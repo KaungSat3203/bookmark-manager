@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useTags } from '@/contexts/TagsContext';
+import fetchApi from '@/lib/api';
+import toast from 'react-hot-toast';
+import { Trash2 } from 'lucide-react';
 
 interface TagsProps {
-  onSelectTag: (tagId: string | null) => void;
-  selectedTag: string | null;
+  onSelectTag: (tagId: string) => void;
+  selectedTags: string[];
 }
 
-export default function Tags({ onSelectTag, selectedTag }: TagsProps) {
-  const { tags, loading } = useTags();
+export default function Tags({ onSelectTag, selectedTags }: TagsProps) {
+  const { tags, loading, refreshTags } = useTags();
 
   if (loading) {
     return <div className="animate-pulse text-neutral-400">Loading tags...</div>;
@@ -17,14 +20,13 @@ export default function Tags({ onSelectTag, selectedTag }: TagsProps) {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-neutral-800 mb-6">Tags</h2>
       <div className="flex flex-wrap gap-2">
         {tags.map((tag) => (
           <button
             key={tag._id}
-            onClick={() => onSelectTag(selectedTag === tag._id ? null : tag._id)}
+            onClick={() => onSelectTag(tag._id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-              selectedTag === tag._id
+              selectedTags.includes(tag._id)
                 ? 'bg-neutral-800 text-white'
                 : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
             }`}
@@ -38,6 +40,7 @@ export default function Tags({ onSelectTag, selectedTag }: TagsProps) {
           </p>
         )}
       </div>
+
     </div>
   );
 }
