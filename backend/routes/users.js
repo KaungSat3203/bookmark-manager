@@ -76,14 +76,14 @@ router.post('/register', validateRegistration, async (req, res) => {
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 60 * 60 * 1000
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -136,14 +136,14 @@ router.post('/login', [
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 60 * 60 * 1000
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -177,14 +177,14 @@ router.post('/refresh-token', async (req, res) => {
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 60 * 60 * 1000
     });
 
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? 'strict' : 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 

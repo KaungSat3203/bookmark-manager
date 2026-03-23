@@ -8,12 +8,25 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://bookmark-manager-alpha-two.vercel.app"
+];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production'
-        ? 'https://bookmark-manager-alpha-two.vercel.app'
-        : 'http://localhost:3000'),
-    credentials: true // allow cookies
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // allow Postman / curl
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
 }));
+
+
 app.use(express.json()); // parse JSON request body
 app.use(cookieParser()); // parse cookies
 
