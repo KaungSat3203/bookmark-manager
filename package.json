@@ -6,9 +6,18 @@
   },
   "dependencies": {
     "next": "15.5.14",
+    "bcrypt": "^6.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "crypto-random-string": "^5.0.0",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.19.0",
+    "mongoose": "^8.18.0",
+    "node-fetch": "^2.6.7",
     "nodemailer": "^7.0.6"
   }
 }

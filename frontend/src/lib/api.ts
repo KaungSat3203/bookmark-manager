@@ -1,5 +1,8 @@
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://bookmark-manager-4l4j.vercel.app/api'
+    : 'http://localhost:5000/api');
 
 // Flag to prevent multiple refresh token requests
 let isRefreshing = false;
