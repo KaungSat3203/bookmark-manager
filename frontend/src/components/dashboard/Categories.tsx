@@ -37,8 +37,8 @@ export default function Categories({ onSelectCategory, selectedCategory }: Categ
       setIsLoading(true);
       const data = await fetchApi('/categories');
       setCategories(data);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch categories');
     } finally {
       setIsLoading(false);
     }
@@ -58,8 +58,8 @@ export default function Categories({ onSelectCategory, selectedCategory }: Categ
       toast.success('Category created!');
       reset();
       fetchCategories(); // Refetch
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create category');
     } finally {
       setIsSubmitting(false);
     }
@@ -72,8 +72,8 @@ export default function Categories({ onSelectCategory, selectedCategory }: Categ
         toast.success('Category deleted!');
         fetchCategories(); // Refetch
         onSelectCategory(null); // Deselect if it was selected
-      } catch (error: any) {
-        toast.error(error.message);
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'Failed to delete category');
       }
     }
   };

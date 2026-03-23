@@ -1,9 +1,9 @@
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Flag to prevent multiple refresh token requests
 let isRefreshing = false;
-let refreshPromise: Promise<any> | null = null;
+let refreshPromise: Promise<unknown> | null = null;
 
 async function refreshToken() {
   if (!isRefreshing) {
@@ -37,7 +37,7 @@ async function fetchApi(path: string, options: RequestInit = {}) {
     try {
       // Try to refresh the token
       await refreshToken();
-      
+
       // Retry the original request
       response = await fetch(`${API_URL}${path}`, {
         ...defaultOptions,

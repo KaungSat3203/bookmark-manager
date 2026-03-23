@@ -17,9 +17,7 @@ export default function Navbar() {
   const [collections, setCollections] = useState<Array<{ _id: string; name: string }>>([]);
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
 
   // parse tags separated by `#`, allow inputs like "#work #fun" or "work #fun"
   const tags = tagInput
@@ -44,16 +42,17 @@ export default function Navbar() {
       toast.success('Bookmark added');
       setShowImportModal(false);
       setTagInput('');
-  setSelectedCollection('');
+      setSelectedCollection('');
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add bookmark');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to add bookmark';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
       // refresh the global tags list so Tags UI updates immediately
       try {
         await refreshTags();
-      } catch (e) {
+      } catch {
         // ignore refresh failures here
       }
     }
@@ -65,7 +64,7 @@ export default function Navbar() {
       try {
         const data = await fetchApi('/collections');
         setCollections(Array.isArray(data) ? data : []);
-      } catch (e) {
+      } catch {
         // ignore
       }
     };
@@ -92,48 +91,23 @@ export default function Navbar() {
                     className="pl-9 pr-3 py-2 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300 bg-neutral-50 text-neutral-800"
                     style={{ width: '250px' }}
                     value={searchQuery}
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const query = e.target.value;
                       setSearchQuery(query);
-                      setIsSearching(true);
-                      
+
                       // Update URL immediately
                       if (query) {
                         router.push(`/dashboard?search=${encodeURIComponent(query)}`);
                       } else {
                         router.push('/dashboard');
                       }
-                      
-                      // Fetch search results right away
-                      try {
-                        const data = await fetchApi(`/bookmarks/search?q=${encodeURIComponent(query)}&page=1&limit=10`);
-                        setSearchResults(data.items || []);
-                      } catch (error) {
-                        console.error('Search error:', error);
-                      } finally {
-                        setIsSearching(false);
-                      }
-                      
-                      try {
-                        if (query.trim()) {
-                          const searchEndpoint = `/bookmarks/search?q=${encodeURIComponent(query.trim())}`;
-                          const data = await fetchApi(searchEndpoint);
-                          setSearchResults(data.items || []);
-                          // Update URL without triggering navigation
-                          window.history.replaceState(
-                            {}, 
-                            '', 
-                            `/dashboard?search=${encodeURIComponent(query.trim())}`
-                          );
-                        } else {
-                          setSearchResults([]);
-                          window.history.replaceState({}, '', '/dashboard');
-                        }
-                      } catch (error) {
-                        console.error('Search failed:', error);
-                      } finally {
-                        setIsSearching(false);
-                      }
+
+                      // Update URL without triggering navigation if typing fast
+                      window.history.replaceState(
+                        {},
+                        '',
+                        query.trim() ? `/dashboard?search=${encodeURIComponent(query.trim())}` : '/dashboard'
+                      );
                     }}
                   />
                   <svg

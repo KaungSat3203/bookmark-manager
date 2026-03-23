@@ -4,7 +4,6 @@ import Link from 'next/link';
 import fetchApi from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Collection {
@@ -12,18 +11,14 @@ interface Collection {
   name: string;
   description?: string;
 }
-interface CollectionsProps {}
-
-export default function Collections(_: CollectionsProps) {
-  const router = useRouter();
+export default function Collections() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [bookmarksByCollection, setBookmarksByCollection] = useState<Record<string, any[]>>({});
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [bookmarksByCollection, setBookmarksByCollection] = useState<Record<string, unknown[]>>({});
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; collectionId: string | null }>({
     isOpen: false,
     collectionId: null,
@@ -46,37 +41,15 @@ export default function Collections(_: CollectionsProps) {
     }
   };
 
-  useEffect(() => {
-    const loadCollections = async () => {
-      try {
-        const data = await fetchApi('/collections');
-        if (Array.isArray(data)) {
-          setCollections(data);
-        } else {
-          console.error('Invalid collections data:', data);
-          toast.error('Failed to load collections');
-        }
-      } catch (error) {
-        console.error('Load collections error:', error);
-        toast.error('Failed to load collections');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCollections();
-  }, []);
-
   const loadBookmarksForCollection = async (collectionId: string) => {
     try {
       const data = await fetchApi(`/bookmarks/by-collection/${collectionId}`);
       // normalize paginated or array-shaped response
       const items = Array.isArray(data)
         ? data
-        : (data && Array.isArray((data as any).items) ? (data as any).items : []);
+        : (data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items: unknown[] }).items) ? (data as { items: unknown[] }).items : []);
       setBookmarksByCollection(prev => ({ ...prev, [collectionId]: items }));
-      setSelectedCollectionId(collectionId);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load bookmarks for collection');
     }
   };
@@ -86,21 +59,22 @@ export default function Collections(_: CollectionsProps) {
       const all = await fetchApi('/bookmarks');
       const items = Array.isArray(all)
         ? all
-        : (all && Array.isArray((all as any).items) ? (all as any).items : []);
-      const map: Record<string, any[]> = {};
-      (items || []).forEach((b: any) => {
-        const c = b.collectionId ? (b.collectionId._id || b.collectionId) : '';
+        : (all && typeof all === 'object' && 'items' in all && Array.isArray((all as { items: unknown[] }).items) ? (all as { items: unknown[] }).items : []);
+      const map: Record<string, unknown[]> = {};
+      ((items as Array<{ collectionId?: string | { _id: string } }>) || []).forEach((b) => {
+        const c = typeof b.collectionId === 'object' ? b.collectionId?._id : (b.collectionId || '');
         if (!c) return;
         map[c] = map[c] || [];
         map[c].push(b);
       });
       setBookmarksByCollection(map);
-    } catch (e) {
+    } catch {
       // ignore
     }
   };
 
   useEffect(() => {
+    loadCollections();
     countBookmarks();
   }, []);
 
@@ -122,7 +96,7 @@ export default function Collections(_: CollectionsProps) {
       setNewDescription('');
       setShowNewModal(false);
       toast.success('Collection created!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to create collection');
     } finally {
       setSubmitting(false);
@@ -131,17 +105,17 @@ export default function Collections(_: CollectionsProps) {
 
   const deleteCollection = async (collectionId: string) => {
     try {
-      await fetchApi(`/collections/${collectionId}`, { 
+      await fetchApi(`/collections/${collectionId}`, {
         method: 'DELETE',
       });
-      
+
       // If we reach here, the deletion was successful
       setCollections(collections.filter(c => c._id !== collectionId));
       toast.success('Collection deleted successfully');
       setDeleteModal({ isOpen: false, collectionId: null });
-    } catch (error: any) {
-      console.error('Delete collection error:', error);
-      toast.error(error.message || 'Failed to delete collection');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to delete collection';
+      toast.error(message);
       setDeleteModal({ isOpen: false, collectionId: null });
     }
   };
@@ -164,9 +138,9 @@ export default function Collections(_: CollectionsProps) {
 
       <div className="grid gap-4">
         {collections.map((collection) => (
-          <div 
-            key={collection._id} 
-            className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200" 
+          <div
+            key={collection._id}
+            className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
             onMouseEnter={() => loadBookmarksForCollection(collection._id)}
           >
             <div className="flex items-start justify-between">
@@ -193,7 +167,7 @@ export default function Collections(_: CollectionsProps) {
                 href={`/dashboard/collections/${collection._id}`}
                 className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 transition-colors duration-200 flex items-center gap-2"
               >
-                View bookmarks 
+                View bookmarks
                 <span className="text-indigo-500">&rarr;</span>
               </Link>
             </div>

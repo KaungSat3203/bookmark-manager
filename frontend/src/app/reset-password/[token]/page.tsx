@@ -3,6 +3,7 @@
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import fetchApi from "@/lib/api";
 
 export default function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -23,17 +24,15 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
     }
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/users/reset-password", {
+      const result = await fetchApi("/users/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Failed to reset password");
-      toast.success("Password reset successful! You can now log in.");
+      toast.success(result.message || "Password reset successful! You can now log in.");
       setTimeout(() => router.push("/login"), 2000);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to reset password");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reset password";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

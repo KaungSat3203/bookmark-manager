@@ -4,6 +4,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import fetchApi from "@/lib/api";
 
 export default function VerifyEmailPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -13,19 +14,17 @@ export default function VerifyEmailPage({ params }: { params: Promise<{ token: s
   useEffect(() => {
     const verify = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/users/verify-email", {
+        const result = await fetchApi("/users/verify-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
         });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.message || "Verification failed");
         setStatus("success");
-        toast.success("Email verified! You can now log in.");
+        toast.success(result.message || "Email verified! You can now log in.");
         setTimeout(() => router.push("/login"), 2000);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus("error");
-        toast.error(err.message || "Verification failed");
+        const message = err instanceof Error ? err.message : "Verification failed";
+        toast.error(message);
       }
     };
     if (token) verify();

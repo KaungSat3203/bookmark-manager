@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import fetchApi from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
@@ -23,17 +23,17 @@ export const TagsProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(false); // Start as false since we won't load immediately
   const { isAuthenticated } = useAuth();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!isAuthenticated) {
       setTags([]);
       return;
     }
-    
+
     setLoading(true);
     try {
       const data = await fetchApi('/tags');
       setTags(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch {
       // Only show error if we're authenticated - 401s are expected when not logged in
       if (isAuthenticated) {
         toast.error('Failed to load tags');
@@ -42,7 +42,7 @@ export const TagsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -50,7 +50,7 @@ export const TagsProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setTags([]);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, load]);
 
   const refreshTags = async () => {
     await load();

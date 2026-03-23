@@ -1,108 +1,63 @@
 'use client';
 
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { useAuth } from '@/contexts/AuthContext';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import AllBookmarks from '@/components/dashboard/AllBookmarks';
 import Collections from '@/components/dashboard/Collections';
 import Tags from '@/components/dashboard/Tags';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function DashboardPage() {
-  const { user } = useAuth();
+function DashboardContent() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams?.get('tab') as 'all' | 'collections' | 'tags') || 'all';
   const [activeTab, setActiveTab] = useState<'all' | 'collections' | 'tags'>(initialTab);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   return (
-    <ProtectedRoute>
-      <div className="w-full min-h-screen bg-neutral-50 flex">
-        {/* Sidebar */}
-        <aside className="w-72 min-h-screen bg-white shadow-lg fixed left-0 top-16 bottom-0">
-          <div className="h-full flex flex-col">
-            {/* Main navigation section */}
-            <nav className="p-4 border-b border-gray-100">
-              <button
-                onClick={() => { setActiveTab('all'); setSelectedTags([]); }}
-                className={`w-full text-left px-4 py-3 rounded-lg text-sm transition flex items-center gap-3 ${
-                  activeTab === 'all'
-                    ? 'bg-indigo-50 text-indigo-700 font-medium shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-50'
+    <div className="w-full min-h-screen bg-neutral-50 flex">
+      {/* Sidebar */}
+      <aside className="w-72 min-h-screen bg-white shadow-lg fixed left-0 top-16 bottom-0">
+        <div className="h-full flex flex-col">
+          {/* Main navigation section */}
+          <nav className="p-4 border-b border-gray-100">
+            <button
+              onClick={() => { setActiveTab('all'); setSelectedTags([]); }}
+              className={`w-full text-left px-4 py-3 rounded-lg text-sm transition flex items-center gap-3 ${activeTab === 'all'
+                ? 'bg-indigo-50 text-indigo-700 font-medium shadow-sm'
+                : 'text-gray-700 hover:bg-gray-50'
                 }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                </svg>
-                All Bookmarks
-              </button>
-            </nav>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+              </svg>
+              All Bookmarks
+            </button>
+          </nav>
 
-            {/* Collections section */}
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">Collections</h2>
-              <button
-                onClick={() => setActiveTab('collections')}
-                className={`w-full text-left px-4 py-3 rounded-lg text-sm transition flex items-center gap-3 ${
-                  activeTab === 'collections'
-                    ? 'bg-indigo-50 text-indigo-700 font-medium shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-50'
+          {/* Collections section */}
+          <div className="p-4 border-b border-gray-100">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">Collections</h2>
+            <button
+              onClick={() => setActiveTab('collections')}
+              className={`w-full text-left px-4 py-3 rounded-lg text-sm transition flex items-center gap-3 ${activeTab === 'collections'
+                ? 'bg-indigo-50 text-indigo-700 font-medium shadow-sm'
+                : 'text-gray-700 hover:bg-gray-50'
                 }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
-                </svg>
-                View Collections
-              </button>
-            </div>
-
-            {/* Tags section */}
-            <div className="p-4 flex-1 overflow-y-auto bg-gray-50 border-t border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">Tags</h2>
-              <div className="space-y-1">
-                <Tags
-                  selectedTags={selectedTags}
-                  onSelectTag={(tagId) => {
-                    setSelectedTags(prev => {
-                      if (prev.includes(tagId)) {
-                        return prev.filter(id => id !== tagId);
-                      }
-                      return [...prev, tagId];
-                    });
-                    setActiveTab('all');
-                  }}
-                />
-              </div>
-            </div>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+              </svg>
+              View Collections
+            </button>
           </div>
-        </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-10 ml-72 mt-16">
-          <div className="max-w-5xl mx-auto">
-            <div className={activeTab === 'all' ? '' : 'hidden'}>
-              <AllBookmarks
-                selectedTags={selectedTags}
-                onTagClick={(tagId) => {
-                  setSelectedTags(prev => {
-                    if (prev.includes(tagId)) {
-                      return prev.filter(id => id !== tagId);
-                    }
-                    return [...prev, tagId];
-                  });
-                  setActiveTab('all');
-                }}
-                onClearCollection={() => {}}
-                selectedCollection={null}
-              />
-            </div>
-
-            <div className={activeTab === 'collections' ? '' : 'hidden'}>
-              <Collections />
-            </div>
-
-            <div className={activeTab === 'tags' ? '' : 'hidden'}>
+          {/* Tags section */}
+          <div className="p-4 flex-1 overflow-y-auto bg-gray-50 border-t border-gray-100">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">Tags</h2>
+            <div className="space-y-1">
               <Tags
+                selectedTags={selectedTags}
                 onSelectTag={(tagId) => {
                   setSelectedTags(prev => {
                     if (prev.includes(tagId)) {
@@ -112,12 +67,62 @@ export default function DashboardPage() {
                   });
                   setActiveTab('all');
                 }}
-                selectedTags={selectedTags}
               />
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-10 ml-72 mt-16">
+        <div className="max-w-5xl mx-auto">
+          <div className={activeTab === 'all' ? '' : 'hidden'}>
+            <AllBookmarks
+              selectedTags={selectedTags}
+              onTagClick={(tagId) => {
+                setSelectedTags(prev => {
+                  if (prev.includes(tagId)) {
+                    return prev.filter(id => id !== tagId);
+                  }
+                  return [...prev, tagId];
+                });
+                setActiveTab('all');
+              }}
+              onClearCollection={() => { }}
+              selectedCollection={null}
+            />
+          </div>
+
+          <div className={activeTab === 'collections' ? '' : 'hidden'}>
+            <Collections />
+          </div>
+
+          <div className={activeTab === 'tags' ? '' : 'hidden'}>
+            <Tags
+              onSelectTag={(tagId) => {
+                setSelectedTags(prev => {
+                  if (prev.includes(tagId)) {
+                    return prev.filter(id => id !== tagId);
+                  }
+                  return [...prev, tagId];
+                });
+                setActiveTab('all');
+              }}
+              selectedTags={selectedTags}
+            />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<div className="p-10 text-slate-400">Loading Dashboard...</div>}>
+        <DashboardContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

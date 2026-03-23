@@ -1,8 +1,5 @@
 'use client';
 
-
-'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -10,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-
+import fetchApi from '@/lib/api';
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -41,25 +38,16 @@ export default function RegisterForm() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:5000/api/users/register', {
+      await fetchApi('/users/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify(data),
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Something went wrong');
-      }
-
       toast.success('Registration successful! Please check your email to verify your account.');
       router.push('/login');
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

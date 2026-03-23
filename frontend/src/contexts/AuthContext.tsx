@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import fetchApi from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -26,30 +26,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const data = await fetchApi('/users/me');
       setUser(data);
-    } catch (error: any) {
-      if (error.message === 'Session expired. Please login again.') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Session expired. Please login again.') {
         router.push('/login');
       }
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     let isInitialMount = true;
-    
+
     // Function to check cookies and refresh if needed
     const checkAndRefreshAuth = async () => {
       if (document.cookie.includes('refreshToken')) {
         try {
           await fetchApi('/users/refresh-token', { method: 'POST' });
           await fetchUser();
-        } catch (error) {
+        } catch {
           setUser(null);
           if (!isInitialMount) {
             router.push('/login');
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isInitialMount = false;
       clearInterval(refreshInterval);
     };
-  }, [router]);
+  }, [router, fetchUser]);
 
   const logout = async () => {
     try {
@@ -79,8 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       toast.success('Logged out successfully');
       router.push('/login');
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Logout failed';
+      toast.error(message);
     }
   };
 

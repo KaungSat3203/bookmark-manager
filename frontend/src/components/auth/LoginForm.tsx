@@ -16,6 +16,8 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+import fetchApi from '@/lib/api';
+
 export default function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -32,20 +34,10 @@ export default function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
-      const response = await fetch('http://localhost:5000/api/users/login', {
+      const result = await fetchApi('/users/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // important for cookies
         body: JSON.stringify(data),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Something went wrong');
-      }
 
       if (result.isEmailVerified === false) {
         toast.error('Please verify your email before logging in');
@@ -55,8 +47,9 @@ export default function LoginForm() {
       await refetchUser();
       toast.success('Logged in successfully');
       router.push('/dashboard'); // redirect to dashboard
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -105,7 +98,7 @@ export default function LoginForm() {
           </button>
           <div className="text-center mt-4">
             <Link href="/register" className="text-sm text-neutral-500 hover:underline">
-              Don't have an account? Sign up
+              Don&apos;t have an account? Sign up
             </Link>
           </div>
         </form>

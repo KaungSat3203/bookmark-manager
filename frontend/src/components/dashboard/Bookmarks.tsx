@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import fetchApi from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
@@ -24,8 +24,8 @@ interface Bookmark {
 }
 
 interface Category {
-    _id: string;
-    name: string;
+  _id: string;
+  name: string;
 }
 
 interface BookmarksProps {
@@ -56,74 +56,75 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
   });
   const { refreshTags } = useTags();
 
-      const fetchBookmarks = async () => {
+  const fetchBookmarks = useCallback(async () => {
     try {
       setIsLoading(true);
       const query = selectedCategory ? `?categoryId=${selectedCategory}` : '';
       const data = await fetchApi(`/bookmarks${query}`);
       // Ensure data is an array
       setBookmarks(Array.isArray(data) ? data : []);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch bookmarks');
       setBookmarks([]);
     } finally {
       setIsLoading(false);
     }
-  };  const fetchCategories = async () => {
+  }, [selectedCategory]);
+  const fetchCategories = useCallback(async () => {
     try {
-        const data = await fetchApi('/categories');
-        setCategories(data);
-      } catch (error: any) {
-        toast.error(error.message);
-      }
-  }
+      const data = await fetchApi('/categories');
+      setCategories(data);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch categories');
+    }
+  }, []);
 
   useEffect(() => {
     fetchBookmarks();
-  }, [selectedCategory]);
+  }, [fetchBookmarks]);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
-      const onSubmit = async (data: BookmarkFormData) => {
+  const onSubmit = async (data: BookmarkFormData) => {
     try {
       setIsSubmitting(true);
       let result: Bookmark;
-      
+
       if (editingBookmark) {
-        result = await fetchApi(`/bookmarks/${editingBookmark._id}`, { 
-          method: 'PUT', 
-          body: JSON.stringify(data) 
+        result = await fetchApi(`/bookmarks/${editingBookmark._id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data)
         });
-        setBookmarks(bookmarks => 
+        setBookmarks(bookmarks =>
           bookmarks.map(b => b._id === editingBookmark._id ? result : b)
         );
       } else {
-        result = await fetchApi('/bookmarks', { 
-          method: 'POST', 
-          body: JSON.stringify(data) 
+        result = await fetchApi('/bookmarks', {
+          method: 'POST',
+          body: JSON.stringify(data)
         });
         setBookmarks(bookmarks => [result, ...bookmarks]);
       }
-      
+
       toast.success(editingBookmark ? 'Bookmark updated!' : 'Bookmark created!');
       reset();
       setEditingBookmark(null);
-      try { await refreshTags(); } catch (e) { /* ignore */ }
-    } catch (error: any) {
-      toast.error(error.message);
+      try { await refreshTags(); } catch { /* ignore */ }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save bookmark');
     } finally {
       setIsSubmitting(false);
     }
-  };  const deleteBookmark = async (id: string) => {
+  }; const deleteBookmark = async (id: string) => {
     try {
       await fetchApi(`/bookmarks/${id}`, { method: 'DELETE' });
       toast.success('Bookmark deleted!');
       setBookmarks(bookmarks => bookmarks.filter(b => b._id !== id));
-      try { await refreshTags(); } catch (e) { }
-    } catch (error: any) {
-      toast.error(error.message);
+      try { await refreshTags(); } catch { }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete bookmark');
     }
   };
 
@@ -144,24 +145,24 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
       <h2 className="text-2xl font-bold mb-4">{editingBookmark ? 'Edit Bookmark' : 'Add Bookmark'}</h2>
       <form onSubmit={handleSubmit(onSubmit)} className="mb-6 bg-gray-50 p-4 rounded-lg">
         <div className="space-y-4">
-            <input {...register('title')} type="text" placeholder="Title" className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-            {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
-            
-            <input {...register('url')} type="text" placeholder="URL" className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-            {errors.url && <p className="text-sm text-red-600">{errors.url.message}</p>}
+          <input {...register('title')} type="text" placeholder="Title" className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+          {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
 
-            <select {...register('categoryId')} className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                <option value="">No Category</option>
-                {categories.map(cat => (
-                    <option key={cat._id} value={cat._id}>{cat.name}</option>
-                ))}
-            </select>
+          <input {...register('url')} type="text" placeholder="URL" className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+          {errors.url && <p className="text-sm text-red-600">{errors.url.message}</p>}
+
+          <select {...register('categoryId')} className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            <option value="">No Category</option>
+            {categories.map(cat => (
+              <option key={cat._id} value={cat._id}>{cat.name}</option>
+            ))}
+          </select>
         </div>
         <div className="flex gap-2 mt-4">
-            <button type="submit" disabled={isSubmitting} className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-                {isSubmitting ? (editingBookmark ? 'Saving...' : 'Adding...') : (editingBookmark ? 'Save Changes' : 'Add Bookmark')}
-            </button>
-            {editingBookmark && <button type="button" onClick={cancelEditing} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300">Cancel</button>}
+          <button type="submit" disabled={isSubmitting} className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            {isSubmitting ? (editingBookmark ? 'Saving...' : 'Adding...') : (editingBookmark ? 'Save Changes' : 'Add Bookmark')}
+          </button>
+          {editingBookmark && <button type="button" onClick={cancelEditing} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300">Cancel</button>}
         </div>
       </form>
 
@@ -169,7 +170,7 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">My Bookmarks</h2>
         </div>
-        
+
         {isLoading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
@@ -187,24 +188,24 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
                   {bm.meta?.image && (
                     <div className="flex-shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img 
-                        src={bm.meta.image} 
-                        alt={bm.meta?.title || bm.title} 
+                      <img
+                        src={bm.meta.image}
+                        alt={bm.meta?.title || bm.title}
                         className="w-20 h-20 object-cover rounded-lg bg-gray-100 shadow-sm"
                         onError={(e) => {
                           const img = e.target as HTMLImageElement;
                           img.style.display = 'none';
-                        }} 
+                        }}
                       />
                     </div>
                   )}
                   <div className="flex-grow min-w-0">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <a 
-                          href={bm.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <a
+                          href={bm.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-lg font-medium text-gray-900 hover:text-indigo-600 transition-colors line-clamp-1"
                         >
                           {bm.meta?.title || bm.title}
@@ -212,13 +213,13 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
                         <p className="mt-1 text-sm text-gray-500 truncate max-w-2xl">{bm.url}</p>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
-                        <button 
-                          onClick={() => startEditing(bm)} 
+                        <button
+                          onClick={() => startEditing(bm)}
                           className="text-sm font-medium px-3 py-1.5 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
                         >
                           Edit
                         </button>
-                        <button 
+                        <button
                           onClick={() => setDeleteModal({ isOpen: true, bookmarkId: bm._id })}
                           className="text-sm font-medium px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors"
                         >
@@ -226,7 +227,7 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
                         </button>
                       </div>
                     </div>
-                    
+
                     {(bm.meta?.siteName || bm.meta?.publishedAt) && (
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {bm.meta?.siteName && (
@@ -245,7 +246,7 @@ export default function Bookmarks({ selectedCategory }: BookmarksProps) {
                         )}
                       </div>
                     )}
-                    
+
                     {bm.meta?.description && (
                       <p className="mt-2 text-sm text-gray-600 line-clamp-2 max-w-2xl">
                         {bm.meta.description}

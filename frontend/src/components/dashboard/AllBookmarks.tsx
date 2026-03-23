@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import fetchApi from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useTags } from '@/contexts/TagsContext';
@@ -25,10 +26,9 @@ interface AllBookmarksProps {
   onTagClick: (tagId: string) => void;
   selectedCollection?: string | null;
   onClearCollection?: () => void;
-  searchResults?: any[];
 }
 
-export default function AllBookmarks({ selectedTags, onTagClick, selectedCollection, onClearCollection, searchResults }: AllBookmarksProps) {
+export default function AllBookmarks({ selectedTags, onTagClick, selectedCollection, onClearCollection }: AllBookmarksProps) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<Array<{ _id: string; name: string }>>([]);
@@ -51,27 +51,14 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
     isOpen: false,
     bookmark: null,
   });
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('search');
   const { refreshTags } = useTags();
 
-  useEffect(() => {
-    setPage(1);
-  }, [selectedTags]);
-
-  useEffect(() => {
-    loadBookmarks();
-  }, [selectedTags, page]);
-
-  // Listen for URL changes to handle search
-  useEffect(() => {
-    loadBookmarks();
-  }, [window.location.search]);
-
-  const loadBookmarks = async () => {
+  const loadBookmarks = useCallback(async () => {
     try {
       setLoading(true);
       let endpoint = '/bookmarks';
-      const searchParams = new URLSearchParams(window.location.search);
-      const searchQuery = searchParams.get('search');
 
       if (searchQuery) {
         endpoint = `/bookmarks/search?q=${encodeURIComponent(searchQuery)}&page=${page}&limit=10`;
@@ -85,37 +72,44 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
 
       const data = await fetchApi(endpoint);
       // handle paginated or array responses
-      let items: any[] = [];
-      let total = 0;
+      let items: Bookmark[] = [];
       let respPage = 1;
       let respPages = 1;
       if (data) {
         if (Array.isArray(data)) {
           items = data;
-        } else if (Array.isArray(data.items)) {
-          items = data.items;
-          total = data.total || items.length;
-          respPage = data.page || 1;
-          respPages = data.pages || 1;
+        } else if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items: unknown[] }).items)) {
+          const d = data as { items: Bookmark[]; page?: number; pages?: number };
+          items = d.items;
+          respPage = d.page || 1;
+          respPages = d.pages || 1;
         }
       }
 
-      const normalized = (items || []).map((b: any) => ({ ...b, tags: Array.isArray(b.tags) ? b.tags : [] }));
+      const normalized = (items || []).map((b) => ({ ...b, tags: Array.isArray(b.tags) ? b.tags : [] }));
       setBookmarks(normalized);
       setPages(respPages);
       setPage(respPage);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load bookmarks');
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, selectedTags, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTags, searchQuery]);
+
+  useEffect(() => {
+    loadBookmarks();
+  }, [loadBookmarks]);
 
   const loadCollections = async () => {
     try {
       const data = await fetchApi('/collections');
       setCollections(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch {
       // silently ignore
     }
   };
@@ -131,12 +125,14 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
     setBookmarks((cur) => cur.map(b => b._id === bookmarkId ? { ...b, collectionId } : b));
 
     try {
-      const body: any = { collectionId };
-      const updated = await fetchApi(`/bookmarks/${bookmarkId}`, { method: 'PUT', body: JSON.stringify(body) });
+      const updated = await fetchApi(`/bookmarks/${bookmarkId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ collectionId })
+      });
       setBookmarks((cur) => cur.map(b => b._id === updated._id ? updated : b));
       toast.success('Collection updated');
-      try { await refreshTags(); } catch (e) { }
-    } catch (error) {
+      try { await refreshTags(); } catch { }
+    } catch {
       // rollback
       setBookmarks(prev);
       toast.error('Failed to update collection');
@@ -164,7 +160,7 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
 
       toast.success('Bookmark updated successfully');
       setEditModal({ isOpen: false, bookmark: null });
-    } catch (error) {
+    } catch {
       toast.error('Failed to update bookmark');
     }
   };
@@ -174,8 +170,8 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
       await fetchApi(`/bookmarks/${id}`, { method: 'DELETE' });
       setBookmarks(bookmarks.filter(b => b._id !== id));
       toast.success('Bookmark deleted');
-      try { await refreshTags(); } catch (e) { }
-    } catch (error) {
+      try { await refreshTags(); } catch { }
+    } catch {
       toast.error('Failed to delete bookmark');
     }
   };
@@ -210,7 +206,7 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
         </div>
         {loading && <div className="text-sm text-neutral-500">Loading…</div>}
       </div>
-      
+
       {bookmarks.map((bookmark) => (
         <div key={bookmark._id} className="p-4 bg-white rounded-lg border border-neutral-200">
           <div className="flex items-start justify-between">
@@ -222,9 +218,9 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
                 )}
                 <div>
                   <h3 className="font-medium text-neutral-800">{bookmark.title}</h3>
-                  <a 
-                    href={bookmark.url} 
-                    target="_blank" 
+                  <a
+                    href={bookmark.url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-neutral-600 hover:text-neutral-800"
                   >
@@ -256,7 +252,7 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
               </button>
             </div>
           </div>
-          
+
           <div className="mt-2 flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
               {Array.isArray(bookmark.tags) && bookmark.tags.length > 0 && bookmark.tags.map((tag) => (
@@ -282,13 +278,13 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
               </button>
             </div>
           </div>
-          
+
           {bookmark.note && (
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">{bookmark.note}</p>
           )}
         </div>
       ))}
-      
+
       {bookmarks.length === 0 && (
         <div className="text-center text-neutral-500">
           No bookmarks found. Add some using the Import button above!
@@ -298,16 +294,16 @@ export default function AllBookmarks({ selectedTags, onTagClick, selectedCollect
       <div className="mt-6 flex items-center justify-between">
         <div className="text-sm font-medium text-slate-600">Page {page} of {pages}</div>
         <div className="flex gap-3">
-          <button 
-            disabled={page <= 1} 
-            onClick={() => setPage(p => Math.max(1, p - 1))} 
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
             className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
-          <button 
-            disabled={page >= pages} 
-            onClick={() => setPage(p => Math.min(pages, p + 1))} 
+          <button
+            disabled={page >= pages}
+            onClick={() => setPage(p => Math.min(pages, p + 1))}
             className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Next

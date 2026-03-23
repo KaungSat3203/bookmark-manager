@@ -1,20 +1,33 @@
 'use client';
 
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import fetchApi from '@/lib/api';
 import toast from 'react-hot-toast';
 
+interface Bookmark {
+  _id: string;
+  title: string;
+  url: string;
+  tags?: Array<{ _id: string; name: string }>;
+  note?: string;
+  meta?: { image?: string; title?: string; siteName?: string };
+}
+
+interface Collection {
+  _id: string;
+  name: string;
+  description?: string;
+}
+
 export default function CollectionDetail() {
-  const { user } = useAuth();
-  const params: any = useParams();
+  const params = useParams() as { id: string };
   const collectionId = params.id;
   const router = useRouter();
 
-  const [collection, setCollection] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [collection, setCollection] = useState<Collection | null>(null);
+  const [items, setItems] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -33,7 +46,7 @@ export default function CollectionDetail() {
       setCollection(col);
       setName(col?.name || '');
       setDescription(col?.description || '');
-    } catch (e) {
+    } catch {
       // ignore
     }
 
@@ -42,7 +55,7 @@ export default function CollectionDetail() {
       setItems(res.items || []);
       setPages(res.pages || 1);
       setPage(res.page || 1);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load bookmarks for collection');
     } finally {
       setLoading(false);
@@ -61,7 +74,7 @@ export default function CollectionDetail() {
       setCollection(updated);
       setEditing(false);
       toast.success('Collection updated');
-    } catch (e) {
+    } catch {
       toast.error('Failed to update collection');
     }
   };
@@ -72,7 +85,7 @@ export default function CollectionDetail() {
       await fetchApi(`/collections/${collectionId}`, { method: 'DELETE' });
       toast.success('Collection deleted');
       router.push('/dashboard');
-    } catch (e) {
+    } catch {
       toast.error('Failed to delete collection');
     }
   };
@@ -85,7 +98,7 @@ export default function CollectionDetail() {
       });
       setItems(items.filter(item => item._id !== bookmarkId));
       toast.success('Removed from collection');
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove from collection');
     }
     setRemoveConfirm({ isOpen: false, bookmarkId: null });
@@ -140,8 +153,8 @@ export default function CollectionDetail() {
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <button 
-                  onClick={() => router.push('/dashboard?tab=collections')} 
+                <button
+                  onClick={() => router.push('/dashboard?tab=collections')}
                   className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 mb-3 transition-colors"
                 >
                   <span>&larr;</span> Back to Collections
@@ -153,14 +166,14 @@ export default function CollectionDetail() {
               </div>
 
               <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setEditing(true)} 
+                <button
+                  onClick={() => setEditing(true)}
                   className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   Edit
                 </button>
-                <button 
-                  onClick={handleDelete} 
+                <button
+                  onClick={handleDelete}
                   className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                 >
                   Delete
@@ -192,15 +205,15 @@ export default function CollectionDetail() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 mt-6">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-500 transition-colors"
                   >
                     Save Changes
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setEditing(false)} 
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
                     className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     Cancel
@@ -234,7 +247,7 @@ export default function CollectionDetail() {
 
                   {Array.isArray(bookmark.tags) && bookmark.tags.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {bookmark.tags.map((tag: any) => (
+                      {bookmark.tags.map((tag) => (
                         <span key={tag._id} className="px-2 py-1 text-xs bg-neutral-100 text-neutral-600 rounded-md">#{tag.name}</span>
                       ))}
                     </div>
@@ -263,7 +276,7 @@ export default function CollectionDetail() {
               <div className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Remove from Collection</h2>
                 <p className="text-gray-600 mb-6">
-                  Are you sure you want to remove this bookmark from the collection? The bookmark itself won't be deleted.
+                  Are you sure you want to remove this bookmark from the collection? The bookmark itself won&apos;t be deleted.
                 </p>
                 <div className="flex justify-end gap-3">
                   <button

@@ -1,10 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import { useTags } from '@/contexts/TagsContext';
-import fetchApi from '@/lib/api';
-import toast from 'react-hot-toast';
-import { Trash2 } from 'lucide-react';
 
 interface TagsProps {
   onSelectTag: (tagId: string) => void;
@@ -12,7 +8,7 @@ interface TagsProps {
 }
 
 export default function Tags({ onSelectTag, selectedTags }: TagsProps) {
-  const { tags, loading, refreshTags } = useTags();
+  const { tags, loading } = useTags();
 
   if (loading) {
     return <div className="animate-pulse text-neutral-400">Loading tags...</div>;
@@ -25,11 +21,10 @@ export default function Tags({ onSelectTag, selectedTags }: TagsProps) {
           <button
             key={tag._id}
             onClick={() => onSelectTag(tag._id)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-              selectedTags.includes(tag._id)
-                ? 'bg-neutral-800 text-white'
-                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${selectedTags.includes(tag._id)
+              ? 'bg-neutral-800 text-white'
+              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+              }`}
           >
             {tag.name}
           </button>
